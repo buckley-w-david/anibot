@@ -15,45 +15,45 @@ var (
 
 func init() {
 	idMediaQuery = graphql.NewRequest(`
-		  query ($id: Int!) {
-            Media(id: $id) {
-              siteUrl
-              title{
-                english
-                romaji
-              }
-              description(asHtml: false)
-              coverImage {
-		  	  extraLarge
-		  	  large
-                medium
-              }
-              type
-              format
-              source
-              studios {
-                edges {
-                  node {
-                    name
-                    siteUrl
-                  }
-                }
-              }
-              staff {
-                edges {
-                  role
-                  node{
-                    siteUrl
-                    name{
-                      first
-                      last
-                    }
-                  }
-                }
-              }
-            }
-		  }
-	    `)
+		query ($id: Int!) {
+			Media(id: $id) {
+				siteUrl
+				title{
+					english
+					romaji
+				}
+				description(asHtml: false)
+				coverImage {
+					extraLarge
+					large
+					medium
+				}
+				type
+				format
+				source
+				studios {
+					edges {
+						node {
+							name
+							siteUrl
+						}
+					}
+				}
+				staff {
+					edges {
+						role
+						node{
+							siteUrl
+							name{
+								first
+								last
+							}
+						}
+					}
+				}
+			}
+		}`)
+
 	client = graphql.NewClient("https://graphql.anilist.co/")
 }
 
