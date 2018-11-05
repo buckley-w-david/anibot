@@ -98,7 +98,17 @@ func main() {
 
 	// Register ready as a callback for the ready events.
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
-		err = discord.UpdateStatus(0, "A friendly helpful bot!")
+		game := discordgo.Game{
+			Name: "anilist",
+			Type: discordgo.GameTypeWatching,
+		}
+
+		status := discordgo.UpdateStatusData{
+			Game: &game,
+			AFK:  false,
+		}
+		err = discord.UpdateStatusComplex(status)
+
 		if err != nil {
 			fmt.Println("Error attempting to set my status")
 		}
