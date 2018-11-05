@@ -84,7 +84,7 @@ func main() {
 	if token == "" {
 		token = os.Getenv("TOKEN")
 		if token == "" {
-			fmt.Println("No token provided. Please run: airhorn -t <bot token>")
+			fmt.Println("No token provided. Please run: tdt-anibot -t <bot token>")
 			return
 		}
 	}

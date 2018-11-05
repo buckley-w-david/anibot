@@ -114,7 +114,7 @@ func (media MediaResponse) Creator() (error, string, string) {
 			return nil, name, media.Media.Staff.Edges[i].Node.SiteUrl
 		}
 	}
-	return errors.New("Unable to find director"), "", ""
+	return errors.New("Unable to find creator"), "", ""
 }
 
 func MediaFromId(ctx context.Context, id int) (error, MediaResponse) {
