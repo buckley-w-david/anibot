@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/buckley-w-david/tdt-anibot/anilist"
+	"github.com/buckley-w-david/anibot/anilist"
 	"github.com/bwmarrin/discordgo"
 	//"github.com/davecgh/go-spew/spew"
 )
