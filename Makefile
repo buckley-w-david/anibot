@@ -4,6 +4,9 @@ build:
 install:
 	go install github.com/buckley-w-david/anibot/bot
 
+run:
+	go run github.com/buckley-w-david/anibot/bot
+
 deploy:
 	git push heroku master
 

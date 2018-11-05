@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/csv"
 	"flag"
 	"fmt"
 	"os"
@@ -40,38 +41,38 @@ func embed(media anilist.MediaResponse) discordgo.MessageEmbed {
 	for i, studio := range media.Media.Studios.Edges {
 		studios[i] = &discordgo.MessageEmbedField{
 			Name:   "Studio",
-			Value:  fmt.Sprintf("[%s](%s)", studio.Node.Name, studio.Node.SiteUrl),
+			Value:  fmt.Sprintf("[%s](%s)", studio.Node.Name, studio.Node.SiteURL),
 			Inline: false,
 		}
 	}
 	fields = append(fields, studios...)
 
-	directorErr, directorName, directorUrl := media.Director()
+	directorName, directorURL, directorErr := media.Director()
 
 	var director discordgo.MessageEmbedField
 	if directorErr == nil {
 		director = discordgo.MessageEmbedField{
 			Name:   "Director",
-			Value:  fmt.Sprintf("[%s](%s)", directorName, directorUrl),
+			Value:  fmt.Sprintf("[%s](%s)", directorName, directorURL),
 			Inline: true,
 		}
 		fields = append(fields, &director)
 	}
 
-	creatorErr, creatorName, creatorUrl := media.Creator()
+	creatorName, creatorURL, creatorErr := media.Creator()
 
 	var creator discordgo.MessageEmbedField
 	if creatorErr == nil {
 		creator = discordgo.MessageEmbedField{
 			Name:   "Original Creator",
-			Value:  fmt.Sprintf("[%s](%s)", creatorName, creatorUrl),
+			Value:  fmt.Sprintf("[%s](%s)", creatorName, creatorURL),
 			Inline: true,
 		}
 		fields = append(fields, &creator)
 	}
 
 	return discordgo.MessageEmbed{
-		URL:         media.Media.SiteUrl,
+		URL:         media.Media.SiteURL,
 		Title:       media.Media.Title.Romaji,
 		Description: media.Media.Description,
 		Color:       0x00ff00,
@@ -137,22 +138,65 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	if strings.HasPrefix(m.Content, "!anibot") {
-		command := strings.TrimPrefix(m.Content, "!anibot ")
-
-		i, err := strconv.Atoi(command)
+	if strings.HasPrefix(m.Content, "!anibot ") {
+		request := strings.TrimPrefix(m.Content, "!anibot ")
+		r := csv.NewReader(strings.NewReader(request))
+		r.Comma = ' ' // space
+		fields, err := r.Read()
 		if err != nil {
-			fmt.Println("Error parsing request", err)
+			fmt.Println(err)
 			return
 		}
-		ctx := context.Background()
-		err, res := anilist.MediaFromId(ctx, i)
-		if err != nil {
-			fmt.Println("Error getting Media", err)
-			return
+		command := fields[0]
+		args := fields[1:len(fields)]
+
+		var queryType string
+		if strings.ToLower(args[0]) == "manga" {
+			queryType = "MANGA"
+			args = args[1:len(args)]
+		} else if strings.ToLower(args[0]) == "anime" {
+			queryType = "ANIME"
+			args = args[1:len(args)]
+		} else {
+			queryType = ""
 		}
 
-		embed := embed(res)
-		s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+		switch command {
+		case "id":
+			for _, id := range args {
+				i, err := strconv.Atoi(id)
+				fmt.Println(i)
+				if err != nil {
+					fmt.Println("Error parsing request", err)
+					return
+				}
+				ctx := context.Background()
+				res, err := anilist.MediaFromID(ctx, anilist.IDQuery{ID: i, Type: queryType})
+				if err != nil {
+					fmt.Println("Error getting Media", err)
+					return
+				}
+				embed := embed(res)
+				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+			}
+		case "title":
+			for _, title := range args {
+				fmt.Println(title)
+				ctx := context.Background()
+				res, err := anilist.MediaFromTitle(ctx, anilist.TitleQuery{Title: title, Type: queryType})
+				if err != nil {
+					fmt.Println("Error getting Media", err)
+					return
+				}
+				embed := embed(res)
+				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+			}
+		case "director":
+			fmt.Println("three")
+		case "studio":
+			fmt.Println("three")
+		default:
+			fmt.Println("three")
+		}
 	}
 }
