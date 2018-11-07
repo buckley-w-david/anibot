@@ -8,6 +8,8 @@ install:
 
 deploy:
 	git push heroku master
+	heroku container:release web bot
+
 
 setup:
 	heroku create anibot --manifest
