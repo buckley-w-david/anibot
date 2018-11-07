@@ -57,6 +57,7 @@ func main() {
 	discord.AddHandler(debug)
 
 	http.HandleFunc("/hooks", handler)
+	http.HandleFunc("/", index)
 	log.Fatal(http.ListenAndServe(":"+listenPort, nil))
 }
 
