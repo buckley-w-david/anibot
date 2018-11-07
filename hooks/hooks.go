@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,15 +15,29 @@ import (
 
 var (
 	discord *discordgo.Session
+	port    shared.CliOption
 	hookURL string
 )
+
+func init() {
+	port = shared.CliOption{Name: "port", Short: "p", Description: "Port to listen on", DefaultValue: "1236"}
+	port.StringVar()
+	shared.SetupSharedOptions()
+
+	flag.Parse()
+}
 
 func main() {
 	hookURL, _ = shared.Hook.OrEnv()
 	botToken, err := shared.Token.OrEnv()
-
 	if err != nil {
 		fmt.Println(shared.MissingToken)
+		return
+	}
+
+	listenPort, err := port.OrEnv()
+	if err != nil {
+		fmt.Println("No port specified")
 		return
 	}
 
@@ -41,8 +56,8 @@ func main() {
 	defer discord.Close()
 	discord.AddHandler(debug)
 
-	http.HandleFunc("/", handler)
-	log.Fatal(http.ListenAndServe(":1236", nil))
+	http.HandleFunc("/hooks", handler)
+	log.Fatal(http.ListenAndServe(":"+listenPort, nil))
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 setup:
   config:
-    HOOK: anibot.davidbuckley.ca
+    HOOK: https://anibot.davidbuckley.ca/hooks
 build:
   docker:
     bot: Dockerfile.bot
-    hooks: Dockerfile.hooks
+    web: Dockerfile.hooks

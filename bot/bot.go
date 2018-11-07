@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -22,14 +23,19 @@ var (
 	hookURL string
 )
 
+func init() {
+	shared.SetupSharedOptions()
+	flag.Parse()
+}
+
 func main() {
 	hookURL, _ = shared.Hook.OrEnv()
 	botToken, err := shared.Token.OrEnv()
-
 	if err != nil {
 		fmt.Println(shared.MissingToken)
 		return
 	}
+	fmt.Println(shared.Hook)
 
 	// Create a new Discord session using the provided bot token.
 	discord, err = discordgo.New("Bot " + botToken)

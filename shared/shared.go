@@ -14,23 +14,23 @@ import (
 )
 
 type CliOption struct {
-	name         string
-	short        string
-	defaultValue string
-	value        string
-	description  string
+	Name         string
+	Short        string
+	DefaultValue string
+	Value        string
+	Description  string
 }
 
 func (cmd *CliOption) StringVar() {
-	flag.StringVar(&cmd.value, cmd.short, os.Getenv(strings.ToUpper(cmd.name)), cmd.description)
+	flag.StringVar(&cmd.Value, cmd.Short, os.Getenv(strings.ToUpper(cmd.Name)), cmd.Description)
 }
 
 func (cmd CliOption) OrEnv() (value string, err error) {
-	if cmd.value != "" {
-		value = cmd.value
+	if cmd.Value != "" {
+		value = cmd.Value
 	} else {
-		if cmd.defaultValue != "" {
-			value = cmd.defaultValue
+		if cmd.DefaultValue != "" {
+			value = cmd.DefaultValue
 		} else {
 			err = errors.New("Unable to find value")
 		}
@@ -47,14 +47,15 @@ var (
 )
 
 func init() {
-	Token = CliOption{name: "token", short: "t", description: "Bot Token"}
-	Hook = CliOption{name: "hook", short: "hook", description: "Webook Server URL"}
+	MissingToken = "No token provided. Please run: anibot -t <bot token>"
+}
+
+func SetupSharedOptions() {
+	Token = CliOption{Name: "token", Short: "t", Description: "Bot Token"}
+	Hook = CliOption{Name: "hook", Short: "hook", Description: "Webook Server URL"}
 
 	Token.StringVar()
 	Hook.StringVar()
-	flag.Parse()
-
-	MissingToken = "No token provided. Please run: anibot -t <bot token>"
 }
 
 func embed(media anilist.MediaResponse, channel string, hookURL string) (discordgo.MessageEmbed, error) {
