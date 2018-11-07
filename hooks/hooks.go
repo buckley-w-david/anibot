@@ -60,6 +60,10 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+listenPort, nil))
 }
 
+func index(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "OK")
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	media, err := anilist.MediaFromID(ctx, 11061)
@@ -82,6 +86,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		embed, _ = shared.Embed(media)
 	}
 	discord.ChannelMessageSendEmbed(channel, &embed)
+	fmt.Fprint(w, "OK")
 }
 
 func debug(s *discordgo.Session, m *discordgo.MessageCreate) {
