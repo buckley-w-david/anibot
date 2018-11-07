@@ -170,7 +170,7 @@ func embed(media anilist.MediaResponse, channel string, hookURL string) (discord
 	return discordgo.MessageEmbed{
 		URL:         media.Media.SiteURL,
 		Title:       media.Media.Title.Romaji,
-		Description: media.Media.Description,
+		Description: strings.Replace(media.Media.Description, "<br>", "\n", -1),
 		Color:       0x00ff00,
 		Thumbnail:   &coverImage,
 		Fields:      fields,
