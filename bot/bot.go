@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/csv"
-	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,91 +12,31 @@ import (
 	"syscall"
 
 	"github.com/buckley-w-david/anibot/anilist"
+	"github.com/buckley-w-david/anibot/shared"
 	"github.com/bwmarrin/discordgo"
 	//"github.com/davecgh/go-spew/spew"
 )
 
 var (
-	token string
+	discord *discordgo.Session
+	hookURL string
 )
 
-func init() {
-	flag.StringVar(&token, "t", "", "Bot Token")
-	flag.Parse()
-}
-
-func embed(media anilist.MediaResponse) discordgo.MessageEmbed {
-	coverImage := discordgo.MessageEmbedThumbnail{
-		URL: media.Media.CoverImage.Medium,
-	}
-
-	mediaType := discordgo.MessageEmbedField{
-		Name:   "Media Type",
-		Value:  fmt.Sprintf("%s %s %s", media.Media.MediaType, media.Media.Format, media.Media.Source),
-		Inline: false,
-	}
-	fields := []*discordgo.MessageEmbedField{&mediaType}
-
-	studios := make([]*discordgo.MessageEmbedField, len(media.Media.Studios.Edges))
-	for i, studio := range media.Media.Studios.Edges {
-		studios[i] = &discordgo.MessageEmbedField{
-			Name:   "Studio",
-			Value:  fmt.Sprintf("[%s](%s)", studio.Node.Name, studio.Node.SiteURL),
-			Inline: false,
-		}
-	}
-	fields = append(fields, studios...)
-
-	directorName, directorURL, directorErr := media.Director()
-
-	var director discordgo.MessageEmbedField
-	if directorErr == nil {
-		director = discordgo.MessageEmbedField{
-			Name:   "Director",
-			Value:  fmt.Sprintf("[%s](%s)", directorName, directorURL),
-			Inline: true,
-		}
-		fields = append(fields, &director)
-	}
-
-	creatorName, creatorURL, creatorErr := media.Creator()
-
-	var creator discordgo.MessageEmbedField
-	if creatorErr == nil {
-		creator = discordgo.MessageEmbedField{
-			Name:   "Original Creator",
-			Value:  fmt.Sprintf("[%s](%s)", creatorName, creatorURL),
-			Inline: true,
-		}
-		fields = append(fields, &creator)
-	}
-
-	return discordgo.MessageEmbed{
-		URL:         media.Media.SiteURL,
-		Title:       media.Media.Title.Romaji,
-		Description: media.Media.Description,
-		Color:       0x00ff00,
-		Thumbnail:   &coverImage,
-		Fields:      fields,
-	}
-}
-
 func main() {
-	if token == "" {
-		token = os.Getenv("TOKEN")
-		if token == "" {
-			fmt.Println("No token provided. Please run: tdt-anibot -t <bot token>")
-			return
-		}
+	hookURL, _ = shared.Hook.OrEnv()
+	botToken, err := shared.Token.OrEnv()
+
+	if err != nil {
+		fmt.Println(shared.MissingToken)
+		return
 	}
 
 	// Create a new Discord session using the provided bot token.
-	discord, err := discordgo.New("Bot " + token)
+	discord, err = discordgo.New("Bot " + botToken)
 	if err != nil {
 		fmt.Println("Error creating Discord session: ", err)
 		return
 	}
-
 	// Register ready as a callback for the ready events.
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
 		game := discordgo.Game{
@@ -108,7 +48,7 @@ func main() {
 			Game: &game,
 			AFK:  false,
 		}
-		err = discord.UpdateStatusComplex(status)
+		err := discord.UpdateStatusComplex(status)
 
 		if err != nil {
 			fmt.Println("Error attempting to set my status")
@@ -122,6 +62,7 @@ func main() {
 	err = discord.Open()
 	if err != nil {
 		fmt.Println("Error opening Discord session: ", err)
+		return
 	}
 	defer discord.Close()
 
@@ -171,12 +112,23 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					return
 				}
 				ctx := context.Background()
-				res, err := anilist.MediaFromID(ctx, anilist.IDQuery{ID: i, Type: queryType})
+				res, err := anilist.MediaFromID(ctx, i)
 				if err != nil {
 					fmt.Println("Error getting Media", err)
 					return
 				}
-				embed := embed(res)
+
+				var embed discordgo.MessageEmbed
+				if hookURL != "" {
+					embed, err = shared.EmbedHook(res, m.ChannelID, hookURL)
+				} else {
+					embed, err = shared.Embed(res)
+				}
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
 				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 			}
 		case "title":
@@ -188,15 +140,26 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					fmt.Println("Error getting Media", err)
 					return
 				}
-				embed := embed(res)
+
+				var embed discordgo.MessageEmbed
+				if hookURL != "" {
+					embed, err = shared.EmbedHook(res, m.ChannelID, hookURL)
+				} else {
+					embed, err = shared.Embed(res)
+				}
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
 				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 			}
 		case "director":
-			fmt.Println("three")
+			fmt.Println("director")
 		case "studio":
-			fmt.Println("three")
+			fmt.Println("studio")
 		default:
-			fmt.Println("three")
+			fmt.Println("default")
 		}
 	}
 }

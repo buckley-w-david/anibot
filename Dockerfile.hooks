@@ -1,0 +1,9 @@
+FROM golang:1.11
+
+WORKDIR /opt/bot/anibot
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+COPY . .
+RUN go install ./hooks
+CMD ["hooks"]

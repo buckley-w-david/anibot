@@ -3,7 +3,6 @@ package anilist
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/machinebox/graphql"
 )
@@ -14,6 +13,21 @@ var (
 
 func init() {
 	client = graphql.NewClient("https://graphql.anilist.co/")
+}
+
+type Person struct {
+	ID      int    `json:"id"`
+	SiteURL string `json:"siteUrl"`
+	Name    struct {
+		First string `json:"first"`
+		Last  string `json:"last"`
+	}
+}
+
+type Studio struct {
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	SiteURL string `json:"siteUrl"`
 }
 
 type MediaResponse struct {
@@ -34,30 +48,16 @@ type MediaResponse struct {
 		Source    string `json:"source"`
 		Studios   struct {
 			Edges []struct {
-				Node struct {
-					Name    string `json:"name"`
-					SiteURL string `json:"siteUrl"`
-				} `json:"node"`
+				Studio Studio `json:"node"`
 			} `json:"edges"`
 		} `json:"studios"`
 		Staff struct {
 			Edges []struct {
-				Role string `json:"role"`
-				Node struct {
-					SiteURL string `json:"siteUrl"`
-					Name    struct {
-						First string `json:"first"`
-						Last  string `json:"last"`
-					} `json:"name"`
-				} `json:"node"`
+				Role   string `json:"role"`
+				Person Person `json:"node"`
 			} `json:"edges"`
 		} `json:"staff"`
 	} `json:"Media"`
-}
-
-type IDQuery struct {
-	ID   int
-	Type string
 }
 
 type TitleQuery struct {
@@ -65,27 +65,25 @@ type TitleQuery struct {
 	Type  string
 }
 
-func (media MediaResponse) Director() (string, string, error) {
+func (media MediaResponse) Director() (Person, error) {
 	for i := range media.Media.Staff.Edges {
 		if media.Media.Staff.Edges[i].Role == "Director" {
-			name := fmt.Sprintf("%s %s", media.Media.Staff.Edges[i].Node.Name.First, media.Media.Staff.Edges[i].Node.Name.Last)
-			return name, media.Media.Staff.Edges[i].Node.SiteURL, nil
+			return media.Media.Staff.Edges[i].Person, nil
 		}
 	}
-	return "", "", errors.New("Unable to find director")
+	return Person{}, errors.New("Unable to find director")
 }
 
-func (media MediaResponse) Creator() (string, string, error) {
+func (media MediaResponse) Creator() (Person, error) {
 	for i := range media.Media.Staff.Edges {
 		if media.Media.Staff.Edges[i].Role == "Original Creator" {
-			name := fmt.Sprintf("%s %s", media.Media.Staff.Edges[i].Node.Name.First, media.Media.Staff.Edges[i].Node.Name.Last)
-			return name, media.Media.Staff.Edges[i].Node.SiteURL, nil
+			return media.Media.Staff.Edges[i].Person, nil
 		}
 	}
-	return "", "", errors.New("Unable to find creator")
+	return Person{}, errors.New("Unable to find creator")
 }
 
-func MediaFromID(ctx context.Context, query IDQuery) (MediaResponse, error) {
+func MediaFromID(ctx context.Context, id int) (MediaResponse, error) {
 	idMediaQuery := graphql.NewRequest(`
       query ($id: Int!, $type: MediaType) {
         Media(id: $id, type: $type, sort: POPULARITY_DESC) {
@@ -106,6 +104,7 @@ func MediaFromID(ctx context.Context, query IDQuery) (MediaResponse, error) {
           studios {
             edges {
               node {
+				id
                 name
                 siteUrl
               }
@@ -115,6 +114,7 @@ func MediaFromID(ctx context.Context, query IDQuery) (MediaResponse, error) {
             edges {
               role
               node{
+			    id
                 siteUrl
                 name{
                   first
@@ -126,10 +126,7 @@ func MediaFromID(ctx context.Context, query IDQuery) (MediaResponse, error) {
         }
       }
 	`)
-	idMediaQuery.Var("id", query.ID)
-	if query.Type != "" {
-		idMediaQuery.Var("type", query.ID)
-	}
+	idMediaQuery.Var("id", id)
 
 	var res MediaResponse
 	if err := client.Run(ctx, idMediaQuery, &res); err != nil {
@@ -159,6 +156,7 @@ func MediaFromTitle(ctx context.Context, query TitleQuery) (MediaResponse, error
           studios {
             edges {
               node {
+				id
                 name
                 siteUrl
               }
@@ -168,6 +166,7 @@ func MediaFromTitle(ctx context.Context, query TitleQuery) (MediaResponse, error
             edges {
               role
               node{
+				id
                 siteUrl
                 name{
                   first

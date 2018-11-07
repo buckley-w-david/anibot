@@ -1,3 +1,7 @@
+setup:
+  config:
+    HOOK: anibot.davidbuckley.ca
 build:
   docker:
-    worker: Dockerfile
+    bot: Dockerfile.bot
+    hooks: Dockerfile.hooks
