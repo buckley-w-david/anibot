@@ -4,16 +4,9 @@ import (
 	"context"
 	"errors"
 
+	//"github.com/davecgh/go-spew/spew"
 	"github.com/machinebox/graphql"
 )
-
-var (
-	client *graphql.Client
-)
-
-func init() {
-	client = graphql.NewClient("https://graphql.anilist.co/")
-}
 
 type Person struct {
 	ID      int    `json:"id"`
@@ -30,63 +23,110 @@ type Studio struct {
 	SiteURL string `json:"siteUrl"`
 }
 
+type Title struct {
+	English string `json:"english,omitempty"`
+	Romaji  string `json:"romaji,omitempty"`
+}
+
+type CoverImage struct {
+	ExtraLarge string `json:"extraLarge,omitempty"`
+	Large      string `json:"large,omitempty"`
+	Medium     string `json:"medium,omitempty"`
+}
+
+type Media struct {
+	SiteURL     string     `json:"siteUrl"`
+	Title       Title      `json:"title"`
+	Description string     `json:"description"`
+	CoverImage  CoverImage `json:"coverImage"`
+	MediaType   string     `json:"type"`
+	Format      string     `json:"format"`
+	Source      string     `json:"source"`
+	Studios     struct {
+		Edges []struct {
+			Studio Studio `json:"node"`
+		} `json:"edges"`
+	} `json:"studios"`
+	Staff struct {
+		Edges []struct {
+			Role   string `json:"role"`
+			Person Person `json:"node"`
+		} `json:"edges"`
+	} `json:"staff"`
+}
+
 type MediaResponse struct {
-	Media struct {
-		SiteURL string `json:"siteUrl"`
-		Title   struct {
-			English string `json:"english,omitempty"`
-			Romaji  string `json:"romaji,omitempty"`
-		} `json:"title"`
-		Description string `json:"description"`
-		CoverImage  struct {
-			ExtraLarge string `json:"extraLarge,omitempty"`
-			Large      string `json:"large,omitempty"`
-			Medium     string `json:"medium,omitempty"`
-		} `json:"coverImage"`
-		MediaType string `json:"type"`
-		Format    string `json:"format"`
-		Source    string `json:"source"`
-		Studios   struct {
-			Edges []struct {
-				Studio Studio `json:"node"`
-			} `json:"edges"`
-		} `json:"studios"`
-		Staff struct {
-			Edges []struct {
-				Role   string `json:"role"`
-				Person Person `json:"node"`
-			} `json:"edges"`
-		} `json:"staff"`
-	} `json:"Media"`
+	Media Media `json:"Media"`
 }
 
-type TitleQuery struct {
-	Title string
-	Type  string
+type MediaPageResponse struct {
+	Page struct {
+		PageInfo struct {
+			Total int `json:"total"`
+		} `json:"pageInfo"`
+		Media []Media `json:"media"`
+	}
 }
 
-func (media MediaResponse) Director() (Person, error) {
-	for i := range media.Media.Staff.Edges {
-		if media.Media.Staff.Edges[i].Role == "Director" {
-			return media.Media.Staff.Edges[i].Person, nil
+func (media Media) Director() (Person, error) {
+	for i := range media.Staff.Edges {
+		if media.Staff.Edges[i].Role == "Director" {
+			return media.Staff.Edges[i].Person, nil
 		}
 	}
 	return Person{}, errors.New("Unable to find director")
 }
 
-func (media MediaResponse) Creator() (Person, error) {
-	for i := range media.Media.Staff.Edges {
-		if media.Media.Staff.Edges[i].Role == "Original Creator" {
-			return media.Media.Staff.Edges[i].Person, nil
+func (media Media) Creator() (Person, error) {
+	for i := range media.Staff.Edges {
+		if media.Staff.Edges[i].Role == "Original Creator" {
+			return media.Staff.Edges[i].Person, nil
 		}
 	}
 	return Person{}, errors.New("Unable to find creator")
 }
 
-func MediaFromID(ctx context.Context, id int) (MediaResponse, error) {
-	idMediaQuery := graphql.NewRequest(`
-      query ($id: Int!, $type: MediaType) {
-        Media(id: $id, type: $type, sort: POPULARITY_DESC) {
+type MediaQuery struct {
+	Title      string
+	ID         int
+	Type       string
+	MaxResults int
+}
+
+type PersonQuery struct {
+	Name       string
+	ID         int
+	Type       string
+	MaxResults int
+}
+
+type StudioQuery struct {
+	Name       string
+	ID         int
+	Type       string
+	MaxResults int
+}
+
+var (
+	client *graphql.Client
+
+	mediaIDQuery     string
+	mediaTitleQuery  string
+	mediaPersonQuery string
+	mediaStudioQuery string
+)
+
+const (
+	ANIME MediaType = 0
+	MANGA MediaType = 1
+)
+
+func init() {
+	client = graphql.NewClient("https://graphql.anilist.co/")
+
+	mediaIDQuery = `
+      query ($id: Int!) {
+        Media(id: $id) {
           siteUrl
           title{
             english
@@ -104,7 +144,7 @@ func MediaFromID(ctx context.Context, id int) (MediaResponse, error) {
           studios {
             edges {
               node {
-				id
+                id
                 name
                 siteUrl
               }
@@ -114,7 +154,7 @@ func MediaFromID(ctx context.Context, id int) (MediaResponse, error) {
             edges {
               role
               node{
-			    id
+                id
                 siteUrl
                 name{
                   first
@@ -125,67 +165,145 @@ func MediaFromID(ctx context.Context, id int) (MediaResponse, error) {
           }
         }
       }
-	`)
+	`
+
+	mediaTitleQuery = `
+      query ($search: String!, $max: Int!, $type: MediaType) {
+				Page(page: 1, perPage: $max) {
+					pageInfo {
+						total
+					}
+					media(search: $search, type: $type, sort:POPULARITY_DESC) {
+						siteUrl
+						title{
+							english
+							romaji
+						}
+						description(asHtml: false)
+						coverImage {
+							extraLarge
+							large
+							medium
+						}
+						type
+						format
+						source
+						studios {
+							edges {
+								isMain
+								node {
+									name
+									siteUrl
+								}
+							}
+						}
+						staff {
+							edges {
+								role
+								node{
+									siteUrl
+									name{
+										first
+										last
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+	`
+
+}
+
+func MediaFromID(ctx context.Context, id int) (Media, error) {
+	idMediaQuery := graphql.NewRequest(mediaIDQuery)
 	idMediaQuery.Var("id", id)
 
 	var res MediaResponse
 	if err := client.Run(ctx, idMediaQuery, &res); err != nil {
-		return MediaResponse{}, err
+		return Media{}, err
 	}
-	return res, nil
+	return res.Media, nil
 }
 
-func MediaFromTitle(ctx context.Context, query TitleQuery) (MediaResponse, error) {
-	titleMediaQuery := graphql.NewRequest(`
-      query ($search: String!, $type: MediaType) {
-        Media(search: $search, type: $type, sort: POPULARITY_DESC) {
-          siteUrl
-          title{
-            english
-            romaji
-          }
-          description(asHtml: false)
-          coverImage {
-            extraLarge
-            large
-            medium
-          }
-          type
-          format
-          source
-          studios {
-            edges {
-              node {
-				id
-                name
-                siteUrl
-              }
-            }
-          }
-          staff {
-            edges {
-              role
-              node{
-				id
-                siteUrl
-                name{
-                  first
-                  last
-                }
-              }
-            }
-          }
-        }
-      }
-	`)
-	titleMediaQuery.Var("search", query.Title)
+func MediaFromMediaQuery(ctx context.Context, query MediaQuery) ([]Media, error) {
+	mediaQuery := graphql.NewRequest(mediaTitleQuery)
+	mediaQuery.Var("search", query.Title)
+	mediaQuery.Var("max", query.MaxResults)
 	if query.Type != "" {
-		titleMediaQuery.Var("type", query.Type)
+		mediaQuery.Var("type", query.Type)
 	}
 
-	var res MediaResponse
-	if err := client.Run(ctx, titleMediaQuery, &res); err != nil {
-		return MediaResponse{}, err
+	var res MediaPageResponse
+	if err := client.Run(ctx, mediaQuery, &res); err != nil {
+		return []Media{}, err
 	}
-	return res, nil
+	return res.Page.Media, nil
+}
+
+func MediaFromPersonQuery(ctx context.Context, query PersonQuery) ([]Media, error) {
+	return []Media{}, nil
+}
+
+func MediaFromStudioQuery(ctx context.Context, query StudioQuery) ([]Media, error) {
+	return []Media{}, nil
+}
+
+type MediaType int
+
+func (t MediaType) Left() string {
+	switch t {
+	case ANIME:
+		return "{"
+	case MANGA:
+		return "<"
+	default:
+		return " "
+	}
+}
+
+func (t MediaType) Right() string {
+	switch t {
+	case ANIME:
+		return "}"
+	case MANGA:
+		return ">"
+	default:
+		return " "
+	}
+}
+func (t MediaType) String() string {
+	switch t {
+	case ANIME:
+		return "ANIME"
+	case MANGA:
+		return "MANGA"
+	default:
+		return ""
+	}
+}
+func (t MediaType) MediaFromTitle(ctx context.Context, title string, maxResults int) ([]Media, error) {
+	mediaQuery := MediaQuery{Title: title, Type: t.String(), MaxResults: maxResults}
+	return MediaFromMediaQuery(ctx, mediaQuery)
+}
+
+func (t MediaType) MediaFromPersonName(ctx context.Context, name string, maxResults int) ([]Media, error) {
+	personQuery := PersonQuery{Name: name, Type: t.String(), MaxResults: maxResults}
+	return MediaFromPersonQuery(ctx, personQuery)
+}
+
+func (t MediaType) MediaFromPersonID(ctx context.Context, id int, maxResults int) ([]Media, error) {
+	personQuery := PersonQuery{ID: id, Type: t.String(), MaxResults: maxResults}
+	return MediaFromPersonQuery(ctx, personQuery)
+}
+
+func (t MediaType) MediaFromStudioName(ctx context.Context, name string, maxResults int) ([]Media, error) {
+	studioQuery := StudioQuery{Name: name, Type: t.String(), MaxResults: maxResults}
+	return MediaFromStudioQuery(ctx, studioQuery)
+}
+
+func (t MediaType) MediaFromStudioID(ctx context.Context, id int, maxResults int) ([]Media, error) {
+	studioQuery := StudioQuery{ID: id, Type: t.String(), MaxResults: maxResults}
+	return MediaFromStudioQuery(ctx, studioQuery)
 }
