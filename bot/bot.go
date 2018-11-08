@@ -107,8 +107,11 @@ func reactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 
 	ctx := context.Background()
 	media, err := anilist.MediaFromID(ctx, 11061)
-	embed, _ := tools.Embed(media)
-	s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	tools.Send(s, m.ChannelID, media)
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
