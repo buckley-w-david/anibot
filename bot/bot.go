@@ -20,7 +20,6 @@ import (
 
 var (
 	discord *discordgo.Session
-	hookURL string
 )
 
 func init() {
@@ -29,13 +28,11 @@ func init() {
 }
 
 func main() {
-	hookURL, _ = shared.Hook.OrEnv()
 	botToken, err := shared.Token.OrEnv()
 	if err != nil {
 		fmt.Println(shared.MissingToken)
 		return
 	}
-	fmt.Println(shared.Hook)
 
 	// Create a new Discord session using the provided bot token.
 	discord, err = discordgo.New("Bot " + botToken)
@@ -63,6 +60,7 @@ func main() {
 
 	// Register messageCreate as a callback for the messageCreate events.
 	discord.AddHandler(messageCreate)
+	discord.AddHandler(reactionAdd)
 
 	// Open the websocket and begin listening.
 	err = discord.Open()
@@ -77,6 +75,36 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
+}
+
+func reactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
+	if r.UserID == s.State.User.ID {
+		return
+	}
+
+	m, _ := s.ChannelMessage(r.ChannelID, r.MessageID)
+	field, err := shared.Reaction(*m, r.Emoji.Name)
+	if err != nil {
+		fmt.Println("Reaction now found: ", err)
+		return
+	}
+	name := strings.TrimSuffix(field.Name, " "+r.Emoji.Name)
+
+	switch name {
+	case "Director":
+		fmt.Println("Director: ", field.Value)
+	case "Original Creator":
+		fmt.Println("Creator: ", field.Value)
+	case "Studio":
+		fmt.Println("Studio: ", field.Value)
+	default:
+		fmt.Println("?: ", field.Value)
+	}
+
+	ctx := context.Background()
+	media, err := anilist.MediaFromID(ctx, 11061)
+	embed, _ := shared.Embed(media)
+	s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -108,6 +136,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			queryType = ""
 		}
 
+		var embed discordgo.MessageEmbed
 		switch command {
 		case "id":
 			for _, id := range args {
@@ -124,18 +153,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					return
 				}
 
-				var embed discordgo.MessageEmbed
-				if hookURL != "" {
-					embed, err = shared.EmbedHook(res, m.ChannelID, hookURL)
-				} else {
-					embed, err = shared.Embed(res)
-				}
+				embed, err = shared.Embed(res)
 				if err != nil {
 					log.Println(err)
 					return
 				}
 
-				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 			}
 		case "title":
 			for _, title := range args {
@@ -147,18 +170,11 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 					return
 				}
 
-				var embed discordgo.MessageEmbed
-				if hookURL != "" {
-					embed, err = shared.EmbedHook(res, m.ChannelID, hookURL)
-				} else {
-					embed, err = shared.Embed(res)
-				}
+				embed, err = shared.Embed(res)
 				if err != nil {
 					log.Println(err)
 					return
 				}
-
-				s.ChannelMessageSendEmbed(m.ChannelID, &embed)
 			}
 		case "director":
 			fmt.Println("director")
@@ -166,6 +182,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println("studio")
 		default:
 			fmt.Println("default")
+		}
+		sent, err := s.ChannelMessageSendEmbed(m.ChannelID, &embed)
+		for _, emoji := range shared.Emojis() {
+			s.MessageReactionAdd(sent.ChannelID, sent.ID, emoji)
 		}
 	}
 }
