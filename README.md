@@ -56,4 +56,4 @@ You'll need the client ID from the application you setup in step 1
 
 ## Why would I want this?
 
- ¯\\_(ツ)_/¯
+ ¯\\\_(ツ)\_/¯
