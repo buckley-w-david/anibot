@@ -3,6 +3,7 @@ package anilist
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	//"github.com/davecgh/go-spew/spew"
 	"github.com/machinebox/graphql"
@@ -68,6 +69,26 @@ type MediaPageResponse struct {
 	}
 }
 
+type StaffMediaResponse struct {
+	Staff struct {
+		StaffMedia struct {
+			Edges []struct {
+				Media Media `json:"node"`
+			} `json:"edges"`
+		} `json:"staffMedia"`
+	} `json:"Staff"`
+}
+
+type StudioMediaResponse struct {
+	Studio struct {
+		Media struct {
+			Edges []struct {
+				Media Media `json:"node"`
+			} `json:"edges"`
+		} `json:"media"`
+	} `json:"Studio"`
+}
+
 func (media Media) Director() (Person, error) {
 	for i := range media.Staff.Edges {
 		if media.Staff.Edges[i].Role == "Director" {
@@ -103,16 +124,17 @@ type PersonQuery struct {
 type StudioQuery struct {
 	Name       string
 	ID         int
-	Type       string
 	MaxResults int
 }
 
 var (
 	client *graphql.Client
 
-	mediaIDQuery     string
-	mediaTitleQuery  string
+	mediaIDQuery    string
+	mediaTitleQuery string
+
 	mediaPersonQuery string
+
 	mediaStudioQuery string
 )
 
@@ -124,99 +146,93 @@ const (
 func init() {
 	client = graphql.NewClient("https://graphql.anilist.co/")
 
-	mediaIDQuery = `
-      query ($id: Int!) {
-        Media(id: $id) {
-          siteUrl
-          title{
-            english
-            romaji
+	media := `
+      siteUrl
+      title{
+        english
+        romaji
+      }
+      description(asHtml: false)
+      coverImage {
+        extraLarge
+        large
+        medium
+      }
+      type
+      format
+      source
+      studios {
+        edges {
+          node {
+            id
+            name
+            siteUrl
           }
-          description(asHtml: false)
-          coverImage {
-            extraLarge
-            large
-            medium
-          }
-          type
-          format
-          source
-          studios {
-            edges {
-              node {
-                id
-                name
-                siteUrl
-              }
-            }
-          }
-          staff {
-            edges {
-              role
-              node{
-                id
-                siteUrl
-                name{
-                  first
-                  last
-                }
-              }
+        }
+      }
+      staff {
+        edges {
+          role
+          node{
+            id
+            siteUrl
+            name{
+              first
+              last
             }
           }
         }
       }
 	`
 
-	mediaTitleQuery = `
-      query ($search: String!, $max: Int!, $type: MediaType) {
-				Page(page: 1, perPage: $max) {
-					pageInfo {
-						total
-					}
-					media(search: $search, type: $type, sort:POPULARITY_DESC) {
-						siteUrl
-						title{
-							english
-							romaji
-						}
-						description(asHtml: false)
-						coverImage {
-							extraLarge
-							large
-							medium
-						}
-						type
-						format
-						source
-						studios {
-							edges {
-								isMain
-								node {
-									name
-									siteUrl
-								}
-							}
-						}
-						staff {
-							edges {
-								role
-								node{
-									siteUrl
-									name{
-										first
-										last
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-	`
+	reduced := `
+      siteUrl
+      title {
+        english
+        romaji
+      }
+      description(asHtml: false)
+      coverImage {
+        extraLarge
+        large
+        medium
+      }
+      type
+      format
+      source
+    `
 
+	mediaIDQuery = fmt.Sprintf(`query ($id: Int!) { Media(id: $id) { %s } }`, media)
+
+	mediaTitleQuery = fmt.Sprintf(`
+      query ($search: String!, $max: Int!, $type: MediaType) {
+        Page(page: 1, perPage: $max) {
+          pageInfo {
+            total
+          }
+          media(search: $search, type: $type, sort:POPULARITY_DESC) {
+            %s
+          }
+        }
+      }
+    `, media)
+
+	mediaPersonQuery = fmt.Sprintf(`
+	  query ($id: Int, $search: String, $max: Int!, $type: MediaType) {
+        Staff(id: $id, search: $search) {
+          staffMedia(sort:POPULARITY_DESC, type: $type, page: 1, perPage: $max) {
+            edges {
+              node {
+                %s
+              }
+            }
+          }
+        }
+      }
+    `, reduced)
 }
 
-func MediaFromID(ctx context.Context, id int) (Media, error) {
+func MediaFromMediaID(ctx context.Context, id int) (Media, error) {
 	idMediaQuery := graphql.NewRequest(mediaIDQuery)
 	idMediaQuery.Var("id", id)
 
@@ -242,37 +258,54 @@ func MediaFromMediaQuery(ctx context.Context, query MediaQuery) ([]Media, error)
 	return res.Page.Media, nil
 }
 
-func MediaFromPersonQuery(ctx context.Context, query PersonQuery) ([]Media, error) {
-	return []Media{}, nil
+func MediaFromPersonQuery(ctx context.Context, query PersonQuery) (response []Media, err error) {
+	mediaQuery := graphql.NewRequest(mediaPersonQuery)
+	if query.Name != "" {
+		mediaQuery.Var("name", query.Name)
+	} else if query.ID != 0 {
+		mediaQuery.Var("id", query.ID)
+	} else {
+		return []Media{}, errors.New("Neither ID or Name set in PersonQuery")
+	}
+
+	if query.Type != "" {
+		mediaQuery.Var("type", query.Type)
+	}
+	mediaQuery.Var("max", query.MaxResults)
+
+	var res StaffMediaResponse
+	if err := client.Run(ctx, mediaQuery, &res); err != nil {
+		return []Media{}, err
+	}
+	for i := 0; i < len(res.Staff.StaffMedia.Edges); i++ {
+		response = append(response, res.Staff.StaffMedia.Edges[i].Media)
+	}
+	return
 }
 
-func MediaFromStudioQuery(ctx context.Context, query StudioQuery) ([]Media, error) {
-	return []Media{}, nil
+func MediaFromStudioQuery(ctx context.Context, query StudioQuery) (response []Media, err error) {
+	mediaQuery := graphql.NewRequest(mediaStudioQuery)
+	if query.Name != "" {
+		mediaQuery.Var("name", query.Name)
+	} else if query.ID != 0 {
+		mediaQuery.Var("id", query.ID)
+	} else {
+		return []Media{}, errors.New("Neither ID or Name set in StudioQuery")
+	}
+	mediaQuery.Var("max", query.MaxResults)
+
+	var res StudioMediaResponse
+	if err := client.Run(ctx, mediaQuery, &res); err != nil {
+		return []Media{}, err
+	}
+	for i := 0; i < len(res.Studio.Media.Edges); i++ {
+		response = append(response, res.Studio.Media.Edges[i].Media)
+	}
+	return
 }
 
 type MediaType int
 
-func (t MediaType) Left() string {
-	switch t {
-	case ANIME:
-		return "{"
-	case MANGA:
-		return "<"
-	default:
-		return " "
-	}
-}
-
-func (t MediaType) Right() string {
-	switch t {
-	case ANIME:
-		return "}"
-	case MANGA:
-		return ">"
-	default:
-		return " "
-	}
-}
 func (t MediaType) String() string {
 	switch t {
 	case ANIME:
@@ -283,27 +316,28 @@ func (t MediaType) String() string {
 		return ""
 	}
 }
-func (t MediaType) MediaFromTitle(ctx context.Context, title string, maxResults int) ([]Media, error) {
-	mediaQuery := MediaQuery{Title: title, Type: t.String(), MaxResults: maxResults}
+
+func MediaFromTitle(ctx context.Context, title string, maxResults int) ([]Media, error) {
+	mediaQuery := MediaQuery{Title: title, MaxResults: maxResults}
 	return MediaFromMediaQuery(ctx, mediaQuery)
 }
 
-func (t MediaType) MediaFromPersonName(ctx context.Context, name string, maxResults int) ([]Media, error) {
-	personQuery := PersonQuery{Name: name, Type: t.String(), MaxResults: maxResults}
+func MediaFromPersonName(ctx context.Context, name string, maxResults int) ([]Media, error) {
+	personQuery := PersonQuery{Name: name, MaxResults: maxResults}
 	return MediaFromPersonQuery(ctx, personQuery)
 }
 
-func (t MediaType) MediaFromPersonID(ctx context.Context, id int, maxResults int) ([]Media, error) {
-	personQuery := PersonQuery{ID: id, Type: t.String(), MaxResults: maxResults}
+func MediaFromPersonID(ctx context.Context, id int, maxResults int) ([]Media, error) {
+	personQuery := PersonQuery{ID: id, MaxResults: maxResults}
 	return MediaFromPersonQuery(ctx, personQuery)
 }
 
-func (t MediaType) MediaFromStudioName(ctx context.Context, name string, maxResults int) ([]Media, error) {
-	studioQuery := StudioQuery{Name: name, Type: t.String(), MaxResults: maxResults}
+func MediaFromStudioName(ctx context.Context, name string, maxResults int) ([]Media, error) {
+	studioQuery := StudioQuery{Name: name, MaxResults: maxResults}
 	return MediaFromStudioQuery(ctx, studioQuery)
 }
 
-func (t MediaType) MediaFromStudioID(ctx context.Context, id int, maxResults int) ([]Media, error) {
-	studioQuery := StudioQuery{ID: id, Type: t.String(), MaxResults: maxResults}
+func MediaFromStudioID(ctx context.Context, id int, maxResults int) ([]Media, error) {
+	studioQuery := StudioQuery{ID: id, MaxResults: maxResults}
 	return MediaFromStudioQuery(ctx, studioQuery)
 }

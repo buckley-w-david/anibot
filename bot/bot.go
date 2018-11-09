@@ -25,6 +25,8 @@ var (
 )
 
 func init() {
+}
+func init() {
 	tools.SetupSharedOptions()
 	flag.Parse()
 
@@ -64,7 +66,6 @@ func main() {
 
 	// Register messageCreate as a callback for the messageCreate events.
 	discord.AddHandler(messageCreate)
-	discord.AddHandler(reactionAdd)
 
 	// Open the websocket and begin listening.
 	err = discord.Open()
@@ -79,39 +80,6 @@ func main() {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
-}
-
-func reactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
-	if r.UserID == s.State.User.ID {
-		return
-	}
-
-	m, _ := s.ChannelMessage(r.ChannelID, r.MessageID)
-	field, err := tools.Reaction(*m, r.Emoji.Name)
-	if err != nil {
-		fmt.Println("Reaction now found: ", err)
-		return
-	}
-	name := strings.TrimSuffix(field.Name, " "+r.Emoji.Name)
-
-	switch name {
-	case "Director":
-		fmt.Println("Director: ", field.Value)
-	case "Original Creator":
-		fmt.Println("Creator: ", field.Value)
-	case "Studio":
-		fmt.Println("Studio: ", field.Value)
-	default:
-		fmt.Println("?: ", field.Value)
-	}
-
-	ctx := context.Background()
-	media, err := anilist.MediaFromID(ctx, 11061)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	tools.Send(s, m.ChannelID, media)
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -133,17 +101,24 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Parse message for any implicit anime/manga requests
 	ctx := context.Background()
 	for _, match := range re.FindAllString(m.Content, -1) {
-		fmt.Println(match)
 		var requestType anilist.MediaType
 		switch match[0] {
 		case '{':
 			requestType = anilist.ANIME
+			match = strings.TrimLeft(match, "}")
+			match = strings.TrimRight(match, "{")
 		case '<':
 			requestType = anilist.MANGA
+			match = strings.TrimLeft(match, ">")
+			match = strings.TrimRight(match, "<")
 		}
-		match = strings.TrimLeft(match, requestType.Left())
-		match = strings.TrimRight(match, requestType.Right())
-		media, err := requestType.MediaFromTitle(ctx, match, 1)
+
+		query := anilist.MediaQuery{
+			Title:      match,
+			Type:       requestType.String(),
+			MaxResults: 1,
+		}
+		media, err := anilist.MediaFromMediaQuery(ctx, query)
 		if err != nil {
 			fmt.Println("Error getting Media", err)
 			return
@@ -153,8 +128,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func botCommand(s *discordgo.Session, channel string, request string) error {
-	fmt.Println(request)
-
 	r := csv.NewReader(strings.NewReader(request))
 	r.Comma = ' ' // space
 	fields, err := r.Read()
@@ -185,7 +158,7 @@ func botCommand(s *discordgo.Session, channel string, request string) error {
 			}
 
 			ctx := context.Background()
-			media, err = anilist.MediaFromID(ctx, i)
+			media, err = anilist.MediaFromMediaID(ctx, i)
 			if err != nil {
 				return err
 			}
@@ -198,13 +171,30 @@ func botCommand(s *discordgo.Session, channel string, request string) error {
 				return err
 			}
 			media = medias[0]
+			tools.Send(s, channel, media)
 		}
-	case "director":
-		fmt.Println("director")
+	case "person":
+		for _, name := range args {
+			ctx := context.Background()
+			medias, err := anilist.MediaFromPersonQuery(ctx, anilist.PersonQuery{Name: name, Type: queryType, MaxResults: 1})
+			if err != nil {
+				return err
+			}
+			media = medias[0]
+			tools.Send(s, channel, media)
+		}
 	case "studio":
-		fmt.Println("studio")
+		for _, name := range args {
+			ctx := context.Background()
+			medias, err := anilist.MediaFromStudioQuery(ctx, anilist.StudioQuery{Name: name, MaxResults: 1})
+			if err != nil {
+				return err
+			}
+			media = medias[0]
+			tools.Send(s, channel, media)
+		}
 	default:
 		fmt.Println("default")
 	}
-	return tools.Send(s, channel, media)
+	return nil
 }

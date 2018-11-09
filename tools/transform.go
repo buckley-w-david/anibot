@@ -59,7 +59,7 @@ func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 	for i, studio := range media.Studios.Edges {
 		value := fmt.Sprintf("[%s](%s)", studio.Studio.Name, studio.Studio.SiteURL)
 		studios[i] = &discordgo.MessageEmbedField{
-			Name:   fmt.Sprintf("Studio %s", StudioReactions[i%len(StudioReactions)]),
+			Name:   "Studio",
 			Value:  value,
 			Inline: false,
 		}
@@ -70,7 +70,7 @@ func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 	if err == nil {
 		value := fmt.Sprintf("[%s %s](%s)", director.Name.First, director.Name.Last, director.SiteURL)
 		director := discordgo.MessageEmbedField{
-			Name:   fmt.Sprintf("Director %s", DirectorReaction),
+			Name:   "Director " + DirectorReaction,
 			Value:  value,
 			Inline: true,
 		}
@@ -82,7 +82,7 @@ func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 		value := fmt.Sprintf("[%s %s](%s)", creator.Name.First, creator.Name.Last, creator.SiteURL)
 
 		creator := discordgo.MessageEmbedField{
-			Name:   fmt.Sprintf("Original Creator %s", CreatorReaction),
+			Name:   "Original Creator " + CreatorReaction,
 			Value:  value,
 			Inline: true,
 		}
