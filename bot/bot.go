@@ -13,7 +13,6 @@ import (
 	"syscall"
 
 	"github.com/buckley-w-david/anibot/anilist"
-	"github.com/buckley-w-david/anibot/tools"
 	"github.com/bwmarrin/discordgo"
 	//"github.com/davecgh/go-spew/spew"
 )
@@ -25,16 +24,16 @@ var (
 )
 
 func init() {
-	tools.SetupSharedOptions()
+	SetupSharedOptions()
 	flag.Parse()
 
 	re = regexp.MustCompile("({.*?})|(<.*?>)")
 }
 
 func main() {
-	botToken, err := tools.Token.OrEnv()
+	botToken, err := Token.OrEnv()
 	if err != nil {
-		fmt.Println(tools.MissingToken)
+		fmt.Println(MissingToken)
 		return
 	}
 
@@ -121,7 +120,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println("Error getting Media", err)
 			return
 		}
-		err = tools.Send(s, m.ChannelID, media[0])
+		err = Send(s, m.ChannelID, media[0])
 		if err != nil {
 			fmt.Println("Error sending message", err)
 		}
@@ -172,7 +171,7 @@ func botCommand(s *discordgo.Session, channel string, request string) error {
 				return err
 			}
 			media = medias[0]
-			tools.Send(s, channel, media)
+			Send(s, channel, media)
 		}
 	case "person":
 		for _, name := range args {
@@ -182,7 +181,7 @@ func botCommand(s *discordgo.Session, channel string, request string) error {
 				return err
 			}
 			media = medias[0]
-			tools.Send(s, channel, media)
+			Send(s, channel, media)
 		}
 	case "studio":
 		for _, name := range args {
@@ -192,7 +191,7 @@ func botCommand(s *discordgo.Session, channel string, request string) error {
 				return err
 			}
 			media = medias[0]
-			tools.Send(s, channel, media)
+			Send(s, channel, media)
 		}
 	default:
 		fmt.Println("default")
