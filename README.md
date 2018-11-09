@@ -34,7 +34,7 @@ Since discord is a little behind the times when it comes to methods of interacti
 
 In the above screenshot, reacting to the message with "👉" will result in the bot pulling additional pieces of media that the Director has worked on, while "👈" will request the same for the Original Creator.
 
-This feature is still a work in progress, but expect equvilant studio requests soon!
+This feature is still a work in progress, but expect equivalent studio requests soon!
 
 To prevent spam, each button will only work once. After is has been pressed, and the info put into chat, using that reaction again won't do anything.
 
@@ -56,4 +56,4 @@ You'll need the client ID from the application you setup in step 1
 
 ## Why would I want this?
 
- ¯\_(ツ)_/¯
+ ¯\\_(ツ)_/¯
