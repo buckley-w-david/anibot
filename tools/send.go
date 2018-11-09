@@ -9,16 +9,22 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type AttachedButton struct {
+	Button    discordbuttons.Button
+	MessageID string
+	ChannelID string
+}
+
 // Send an Embed message to the given channel using the provided Session.
-func Send(s *discordgo.Session, channel string, media anilist.Media) error {
+func Send(s *discordgo.Session, channel string, media anilist.Media) (err error) {
 	embed, err := Embed(media)
 	if err != nil {
-		return err
+		return
 	}
 
 	sent, err := s.ChannelMessageSendEmbed(channel, &embed)
 	if err != nil {
-		return err
+		return
 	}
 
 	creator, err := media.Creator()
@@ -27,7 +33,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) error {
 		creatorButton := discordbuttons.Button{
 			Data:     nil,
 			Reaction: CreatorReaction,
-			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, m *discordgo.Message, data interface{}) {
+			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, mID string, cID string, data interface{}) {
 				fmt.Println(creator.ID)
 				ctx := context.Background()
 				creatorMedia, err := anilist.MediaFromPersonID(ctx, creator.ID, 3)
@@ -43,7 +49,8 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) error {
 			},
 		}
 
-		discordbuttons.AddButton(s, sent, creatorButton, true)
+		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, creatorButton, true)
+		s.MessageReactionAdd(sent.ChannelID, sent.ID, creatorButton.Reaction)
 	}
 	director, err := media.Director()
 	fmt.Println(director)
@@ -51,7 +58,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) error {
 		directorButton := discordbuttons.Button{
 			Data:     nil,
 			Reaction: DirectorReaction,
-			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, m *discordgo.Message, data interface{}) {
+			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, mID string, cID string, data interface{}) {
 				fmt.Println(director.ID)
 				ctx := context.Background()
 				directorMedia, err := anilist.MediaFromPersonID(ctx, director.ID, 3)
@@ -66,7 +73,8 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) error {
 				}
 			},
 		}
-		discordbuttons.AddButton(s, sent, directorButton, true)
+		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, directorButton, true)
+		s.MessageReactionAdd(sent.ChannelID, sent.ID, directorButton.Reaction)
 	}
-	return nil
+	return
 }

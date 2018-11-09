@@ -25,8 +25,6 @@ var (
 )
 
 func init() {
-}
-func init() {
 	tools.SetupSharedOptions()
 	flag.Parse()
 
@@ -76,7 +74,7 @@ func main() {
 	defer discord.Close()
 
 	// Wait here until CTRL-C or other term signal is received.
-	fmt.Println("TDT Anibot is now running.  Press CTRL-C to exit.")
+	fmt.Println("Anibot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
@@ -123,7 +121,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println("Error getting Media", err)
 			return
 		}
-		tools.Send(s, m.ChannelID, media[0])
+		err = tools.Send(s, m.ChannelID, media[0])
+		if err != nil {
+			fmt.Println("Error sending message", err)
+		}
 	}
 }
 

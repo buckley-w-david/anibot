@@ -32,7 +32,10 @@ func (cmd CliOption) OrEnv() (value string, err error) {
 	return
 }
 
-var Token CliOption
+var (
+	Token   CliOption
+	Buttons CliOption
+)
 
 func init() {
 	MissingToken = "No token provided. Please run: anibot -t <bot token>"
@@ -40,6 +43,8 @@ func init() {
 
 func SetupSharedOptions() {
 	Token = CliOption{Name: "token", Short: "t", Description: "Bot Token"}
+	Buttons = CliOption{Name: "buttons", Short: "b", Description: "Buttons path"}
 
 	Token.StringVar()
+	Buttons.StringVar()
 }
