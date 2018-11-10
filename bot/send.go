@@ -9,12 +9,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-type AttachedButton struct {
-	Button    discordbuttons.Button
-	MessageID string
-	ChannelID string
-}
-
 // Send an Embed message to the given channel using the provided Session.
 func Send(s *discordgo.Session, channel string, media anilist.Media) (err error) {
 	embed, err := Embed(media)
@@ -28,7 +22,6 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 	}
 
 	creator, err := media.Creator()
-	fmt.Println(creator)
 	if err == nil {
 		creatorButton := discordbuttons.Button{
 			Data:     nil,
@@ -43,7 +36,6 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range creatorMedia {
-					fmt.Println(media.SiteURL)
 					Send(s, r.ChannelID, media)
 				}
 			},
@@ -52,8 +44,8 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, creatorButton, true)
 		s.MessageReactionAdd(sent.ChannelID, sent.ID, creatorButton.Reaction)
 	}
+
 	director, err := media.Director()
-	fmt.Println(director)
 	if err == nil {
 		directorButton := discordbuttons.Button{
 			Data:     nil,
@@ -68,13 +60,36 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range directorMedia {
-					fmt.Println(media.SiteURL)
 					Send(s, r.ChannelID, media)
 				}
 			},
 		}
 		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, directorButton, true)
 		s.MessageReactionAdd(sent.ChannelID, sent.ID, directorButton.Reaction)
+	}
+	for i := range media.Studios.Edges {
+		// If we close over i itself, every callback will be the same, since i is updated in place by the for loop.
+		// Be creating a new, locally scoped variable and using that instead, our closure works correctly.
+		j := i
+		studioButton := discordbuttons.Button{
+			Data:     nil,
+			Reaction: StudioReactions[i%2],
+			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, mID string, cID string, data interface{}) {
+				fmt.Println(media.Studios.Edges[j].Studio.ID)
+				ctx := context.Background()
+				studioMedia, err := anilist.MediaFromStudioID(ctx, media.Studios.Edges[j].Studio.ID, 3)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				for _, media := range studioMedia {
+					Send(s, r.ChannelID, media)
+				}
+			},
+		}
+		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, studioButton, true)
+		s.MessageReactionAdd(sent.ChannelID, sent.ID, studioButton.Reaction)
 	}
 	return
 }

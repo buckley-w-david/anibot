@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -24,23 +23,6 @@ func init() {
 	StudioReactions = []string{"👇", "👆"}
 }
 
-func Emojis() []string {
-	emojis := []string{DirectorReaction, CreatorReaction}
-	emojis = append(emojis, StudioReactions...)
-	return emojis
-}
-
-func Reaction(m discordgo.Message, reaction string) (discordgo.MessageEmbedField, error) {
-	for _, embed := range m.Embeds {
-		for _, field := range embed.Fields {
-			if strings.HasSuffix(field.Name, reaction) {
-				return *field, nil
-			}
-		}
-	}
-	return discordgo.MessageEmbedField{}, errors.New("Reaction not present in Fields")
-}
-
 // Embed transforms an anilist.MediaResposne struct into a discordgo.MessageEmbed.
 func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 	coverImage := discordgo.MessageEmbedThumbnail{
@@ -59,7 +41,7 @@ func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 	for i, studio := range media.Studios.Edges {
 		value := fmt.Sprintf("[%s](%s)", studio.Studio.Name, studio.Studio.SiteURL)
 		studios[i] = &discordgo.MessageEmbedField{
-			Name:   "Studio",
+			Name:   "Studio" + StudioReactions[i%2],
 			Value:  value,
 			Inline: false,
 		}

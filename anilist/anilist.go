@@ -2,6 +2,7 @@ package anilist
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -72,9 +73,9 @@ type MediaPageResponse struct {
 type StaffMediaResponse struct {
 	Staff struct {
 		StaffMedia struct {
-			Edges []struct {
-				Media Media `json:"node"`
-			} `json:"edges"`
+			Nodes []struct {
+				ID int `json:"id"`
+			} `json:"nodes"`
 		} `json:"staffMedia"`
 	} `json:"Staff"`
 }
@@ -82,9 +83,9 @@ type StaffMediaResponse struct {
 type StudioMediaResponse struct {
 	Studio struct {
 		Media struct {
-			Edges []struct {
-				Media Media `json:"node"`
-			} `json:"edges"`
+			Nodes []struct {
+				ID int `json:"id"`
+			} `json:"nodes"`
 		} `json:"media"`
 	} `json:"Studio"`
 }
@@ -185,23 +186,6 @@ func init() {
       }
 	`
 
-	reduced := `
-      siteUrl
-      title {
-        english
-        romaji
-      }
-      description(asHtml: false)
-      coverImage {
-        extraLarge
-        large
-        medium
-      }
-      type
-      format
-      source
-    `
-
 	mediaIDQuery = fmt.Sprintf(`query ($id: Int!) { Media(id: $id) { %s } }`, media)
 
 	mediaTitleQuery = fmt.Sprintf(`
@@ -217,19 +201,29 @@ func init() {
       }
     `, media)
 
-	mediaPersonQuery = fmt.Sprintf(`
+	mediaPersonQuery = `
 	  query ($id: Int, $search: String, $max: Int!, $type: MediaType) {
         Staff(id: $id, search: $search) {
           staffMedia(sort:POPULARITY_DESC, type: $type, page: 1, perPage: $max) {
-            edges {
-              node {
-                %s
-              }
+            nodes {
+              id
             }
+          } 
+        }
+      }
+		`
+
+	mediaStudioQuery = `
+    query ($id: Int, $search: String, $max: Int!) {
+      Studio(id: $id, search: $search) {
+        media(sort:POPULARITY_DESC, page: 1, perPage: $max) {
+          nodes{
+            id
           }
         }
       }
-    `, reduced)
+    }
+    `
 }
 
 func MediaFromMediaID(ctx context.Context, id int) (Media, error) {
@@ -277,8 +271,11 @@ func MediaFromPersonQuery(ctx context.Context, query PersonQuery) (response []Me
 	if err := client.Run(ctx, mediaQuery, &res); err != nil {
 		return []Media{}, err
 	}
-	for i := 0; i < len(res.Staff.StaffMedia.Edges); i++ {
-		response = append(response, res.Staff.StaffMedia.Edges[i].Media)
+	for i := 0; i < len(res.Staff.StaffMedia.Nodes); i++ {
+		media, err := MediaFromMediaID(ctx, res.Staff.StaffMedia.Nodes[i].ID)
+		if err == nil {
+			response = append(response, media)
+		}
 	}
 	return
 }
@@ -290,7 +287,7 @@ func MediaFromStudioQuery(ctx context.Context, query StudioQuery) (response []Me
 	} else if query.ID != 0 {
 		mediaQuery.Var("id", query.ID)
 	} else {
-		return []Media{}, errors.New("Neither ID or Name set in StudioQuery")
+		return []Media{}, errors.New("Neither ID or Name set in PersonQuery")
 	}
 	mediaQuery.Var("max", query.MaxResults)
 
@@ -298,10 +295,14 @@ func MediaFromStudioQuery(ctx context.Context, query StudioQuery) (response []Me
 	if err := client.Run(ctx, mediaQuery, &res); err != nil {
 		return []Media{}, err
 	}
-	for i := 0; i < len(res.Studio.Media.Edges); i++ {
-		response = append(response, res.Studio.Media.Edges[i].Media)
+	for i := 0; i < len(res.Studio.Media.Nodes); i++ {
+		media, err := MediaFromMediaID(ctx, res.Studio.Media.Nodes[i].ID)
+		if err == nil {
+			response = append(response, media)
+		}
 	}
 	return
+
 }
 
 type MediaType int
@@ -340,4 +341,19 @@ func MediaFromStudioName(ctx context.Context, name string, maxResults int) ([]Me
 func MediaFromStudioID(ctx context.Context, id int, maxResults int) ([]Media, error) {
 	studioQuery := StudioQuery{ID: id, MaxResults: maxResults}
 	return MediaFromStudioQuery(ctx, studioQuery)
+}
+
+// Execute is for specialized more specific queries that clients may want to perform that the library does not
+// explicitly support. Try not to use this if at all possible.
+func Execute(ctx context.Context, query string, vars map[string]interface{}) (map[string]*json.RawMessage, error) {
+	mediaQuery := graphql.NewRequest(query)
+	for k, v := range vars {
+		mediaQuery.Var(k, v)
+	}
+
+	var res map[string]*json.RawMessage
+	if err := client.Run(ctx, mediaQuery, &res); err != nil {
+		return map[string]*json.RawMessage{}, err
+	}
+	return res, nil
 }
