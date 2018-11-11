@@ -36,7 +36,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range creatorMedia {
-					go Send(s, r.ChannelID, media)
+					Send(s, r.ChannelID, media)
 				}
 			},
 		}

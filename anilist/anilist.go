@@ -112,6 +112,7 @@ type MediaQuery struct {
 	Title      string
 	ID         int
 	Type       string
+	Sort       []string
 	MaxResults int
 }
 
@@ -189,12 +190,12 @@ func init() {
 	mediaIDQuery = fmt.Sprintf(`query ($id: Int!) { Media(id: $id) { %s } }`, media)
 
 	mediaTitleQuery = fmt.Sprintf(`
-      query ($search: String!, $max: Int!, $type: MediaType) {
+      query ($search: String, $id: Int, $max: Int!, $type: MediaType, $sort: [MediaSort]) {
         Page(page: 1, perPage: $max) {
           pageInfo {
             total
           }
-          media(search: $search, type: $type, sort:POPULARITY_DESC) {
+          media(search: $search, id: $id, type: $type, sort: $sort) {
             %s
           }
         }
@@ -239,10 +240,17 @@ func MediaFromMediaID(ctx context.Context, id int) (Media, error) {
 
 func MediaFromMediaQuery(ctx context.Context, query MediaQuery) ([]Media, error) {
 	mediaQuery := graphql.NewRequest(mediaTitleQuery)
-	mediaQuery.Var("search", query.Title)
 	mediaQuery.Var("max", query.MaxResults)
+	if query.Title != "" {
+		mediaQuery.Var("search", query.Title)
+	} else if query.ID != 0 {
+		mediaQuery.Var("id", query.ID)
+	}
 	if query.Type != "" {
 		mediaQuery.Var("type", query.Type)
+	}
+	if len(query.Sort) > 0 {
+		mediaQuery.Var("sort", query.Sort)
 	}
 
 	var res MediaPageResponse
