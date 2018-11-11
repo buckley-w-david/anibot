@@ -105,6 +105,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	matches := re.FindAllStringSubmatch(m.Content, -1)
 	for i := range matches {
 		j := i
+		// TODO: This doesn't really need to be a local function, factor out into a real one
 		go func() {
 			var requestType anilist.MediaType
 			var mediaName string

@@ -3,11 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/buckley-w-david/anibot/anilist"
 	"github.com/buckley-w-david/discordbuttons"
 	"github.com/bwmarrin/discordgo"
 )
+
+const expirationDelay = 60 * 60 * 24
+
+func callAfterN(f func(), n time.Duration) {
+	time.Sleep(n * time.Second)
+	f()
+}
 
 // Send an Embed message to the given channel using the provided Session.
 func Send(s *discordgo.Session, channel string, media anilist.Media) (err error) {
@@ -36,13 +44,16 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range creatorMedia {
-					Send(s, r.ChannelID, media)
+					go Send(s, r.ChannelID, media)
 				}
 			},
 		}
 
-		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, creatorButton, true)
-		s.MessageReactionAdd(sent.ChannelID, sent.ID, creatorButton.Reaction)
+		remove, err := discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, creatorButton, true)
+		if err == nil {
+			go callAfterN(remove, expirationDelay)
+			s.MessageReactionAdd(sent.ChannelID, sent.ID, creatorButton.Reaction)
+		}
 	}
 
 	director, err := media.Director()
@@ -64,8 +75,11 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 			},
 		}
-		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, directorButton, true)
-		s.MessageReactionAdd(sent.ChannelID, sent.ID, directorButton.Reaction)
+		remove, err := discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, directorButton, true)
+		if err == nil {
+			go callAfterN(remove, expirationDelay)
+			s.MessageReactionAdd(sent.ChannelID, sent.ID, directorButton.Reaction)
+		}
 	}
 	for i := range media.Studios.Edges {
 		// If we close over i itself, every callback will be the same, since i is updated in place by the for loop.
@@ -88,8 +102,11 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 			},
 		}
-		discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, studioButton, true)
-		s.MessageReactionAdd(sent.ChannelID, sent.ID, studioButton.Reaction)
+		remove, err := discordbuttons.AttachButton(s, sent.ID, sent.ChannelID, studioButton, true)
+		if err == nil {
+			go callAfterN(remove, expirationDelay)
+			s.MessageReactionAdd(sent.ChannelID, sent.ID, studioButton.Reaction)
+		}
 	}
 	return
 }

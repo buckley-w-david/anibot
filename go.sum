@@ -9,6 +9,8 @@ github.com/buckley-w-david/discordbuttons v0.0.0-20181109171737-b1e982612151 h1:
 github.com/buckley-w-david/discordbuttons v0.0.0-20181109171737-b1e982612151/go.mod h1:vuIynSGqSmJIVMYgIyTOnR4yxtBAeOK0IkAlDmi2WgA=
 github.com/buckley-w-david/discordbuttons v0.0.0-20181109172950-dfa3b193799a h1:WAb837bRnXdJz9mthKamYbnBy9lV6WXvCXkPw1at2k8=
 github.com/buckley-w-david/discordbuttons v0.0.0-20181109172950-dfa3b193799a/go.mod h1:vuIynSGqSmJIVMYgIyTOnR4yxtBAeOK0IkAlDmi2WgA=
+github.com/buckley-w-david/discordbuttons v0.0.0-20181111175518-02f9e693f478 h1:rph+EcLUmVsJDElmGxRiGja7RYi5Do1r2I6XLMf6MdM=
+github.com/buckley-w-david/discordbuttons v0.0.0-20181111175518-02f9e693f478/go.mod h1:vuIynSGqSmJIVMYgIyTOnR4yxtBAeOK0IkAlDmi2WgA=
 github.com/bwmarrin/discordgo v0.19.0 h1:kMED/DB0NR1QhRcalb85w0Cu3Ep2OrGAqZH1R5awQiY=
 github.com/bwmarrin/discordgo v0.19.0/go.mod h1:O9S4p+ofTFwB02em7jkpkV8M3R0/PUVOwN61zSZ0r4Q=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

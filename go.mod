@@ -1,7 +1,7 @@
 module github.com/buckley-w-david/anibot
 
 require (
-	github.com/buckley-w-david/discordbuttons v0.0.0-20181109172950-dfa3b193799a
+	github.com/buckley-w-david/discordbuttons v0.0.0-20181111175518-02f9e693f478
 	github.com/bwmarrin/discordgo v0.19.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/machinebox/graphql v0.2.2
