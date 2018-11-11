@@ -102,53 +102,60 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	// Parse message for any implicit anime/manga requests
 	ctx := context.Background()
-	for _, match := range re.FindAllStringSubmatch(m.Content, -1) {
-		var requestType anilist.MediaType
-		var mediaName string
-		if match[1] != "" {
-			requestType = anilist.ANIME
-			mediaName = match[1]
-		} else if match[2] != "" {
-			requestType = anilist.MANGA
-			mediaName = match[2]
-		} else {
-			fmt.Println("Weird match: ", match)
-			return
-		}
-
-		query := anilist.MediaQuery{
-			Title:      mediaName,
-			Type:       requestType.String(),
-			Sort:       []string{"SEARCH_MATCH"},
-			MaxResults: 3,
-		}
-		potentials, err := anilist.MediaFromMediaQuery(ctx, query)
-		if err != nil {
-			fmt.Println("Error getting Media", err)
-			return
-		}
-
-		for _, potential := range potentials {
-			if potential.Title.Romaji == mediaName || potential.Title.English == mediaName {
-				go Send(s, m.ChannelID, potential)
+	matches := re.FindAllStringSubmatch(m.Content, -1)
+	for i := range matches {
+		j := i
+		go func() {
+			var requestType anilist.MediaType
+			var mediaName string
+			match := matches[j]
+			if match[1] != "" {
+				requestType = anilist.ANIME
+				mediaName = match[1]
+			} else if match[2] != "" {
+				requestType = anilist.MANGA
+				mediaName = match[2]
+			} else {
+				fmt.Println("Weird match: ", match)
 				return
 			}
-		}
-		query = anilist.MediaQuery{
-			Title:      mediaName,
-			Type:       requestType.String(),
-			Sort:       []string{"POPULARITY_DESC"},
-			MaxResults: 1,
-		}
 
-		media, err := anilist.MediaFromMediaQuery(ctx, query)
-		if err != nil {
-			fmt.Println("Error getting Media", err)
-			return
-		}
-		if len(media) > 0 {
-			go Send(s, m.ChannelID, media[0])
-		}
+			// See if we can get an exact title match
+			query := anilist.MediaQuery{
+				Title:      mediaName,
+				Type:       requestType.String(),
+				Sort:       []string{"SEARCH_MATCH"},
+				MaxResults: 3,
+			}
+			potentials, err := anilist.MediaFromMediaQuery(ctx, query)
+			if err != nil {
+				fmt.Println("Error getting Media", err)
+				return
+			}
+			for _, potential := range potentials {
+				if potential.Title.Romaji == mediaName || potential.Title.English == mediaName {
+					go Send(s, m.ChannelID, potential)
+					return
+				}
+			}
+
+			// If not just grab the most popular one
+			query = anilist.MediaQuery{
+				Title:      mediaName,
+				Type:       requestType.String(),
+				Sort:       []string{"POPULARITY_DESC"},
+				MaxResults: 1,
+			}
+			media, err := anilist.MediaFromMediaQuery(ctx, query)
+			if err != nil {
+				fmt.Println("Error getting Media", err)
+				return
+			}
+
+			if len(media) > 0 {
+				go Send(s, m.ChannelID, media[0])
+			}
+		}()
 	}
 }
 
