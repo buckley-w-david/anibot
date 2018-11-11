@@ -14,7 +14,6 @@ import (
 
 	"github.com/buckley-w-david/anibot/anilist"
 	"github.com/bwmarrin/discordgo"
-	//"github.com/davecgh/go-spew/spew"
 )
 
 var (
@@ -63,6 +62,7 @@ func main() {
 
 	// Register messageCreate as a callback for the messageCreate events.
 	discord.AddHandler(messageCreate)
+	// discord.AddHandler(reaction)
 
 	// Open the websocket and begin listening.
 	err = discord.Open()
@@ -78,6 +78,11 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 }
+
+// func reaction(s *discordgo.Session, m *discordgo.MessageReactionAdd) {
+// 	fmt.Println(m.Emoji)
+// 	spew.Dump(m.Emoji)
+// }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Ignore all messages created by the bot itself
@@ -120,10 +125,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			fmt.Println("Error getting Media", err)
 			return
 		}
-		err = Send(s, m.ChannelID, media[0])
-		if err != nil {
-			fmt.Println("Error sending message", err)
-		}
+		go Send(s, m.ChannelID, media[0])
 	}
 }
 

@@ -20,7 +20,7 @@ func init() {
 
 	DirectorReaction = "👉"
 	CreatorReaction = "👈"
-	StudioReactions = []string{"👇", "👆"}
+	StudioReactions = []string{"1⃣", "2⃣", "3⃣", "4⃣", "5⃣", "6⃣", "7⃣", "8⃣", "9⃣", "🔟"}
 }
 
 // Embed transforms an anilist.MediaResposne struct into a discordgo.MessageEmbed.
@@ -37,13 +37,21 @@ func Embed(media anilist.Media) (discordgo.MessageEmbed, error) {
 	fields := []*discordgo.MessageEmbedField{&mediaType}
 
 	// TODO: Account for more than 2 studios w.r.t reactions
+	var inline func(int) bool
+	if len(media.Studios.Edges)&1 == 0 {
+		inline = func(int) bool { return true }
+	} else {
+		inline = func(i int) bool {
+			return i < len(media.Studios.Edges)-1
+		}
+	}
 	studios := make([]*discordgo.MessageEmbedField, len(media.Studios.Edges))
 	for i, studio := range media.Studios.Edges {
 		value := fmt.Sprintf("[%s](%s)", studio.Studio.Name, studio.Studio.SiteURL)
 		studios[i] = &discordgo.MessageEmbedField{
-			Name:   "Studio" + StudioReactions[i%2],
+			Name:   "Studio",
 			Value:  value,
-			Inline: false,
+			Inline: inline(i),
 		}
 	}
 	fields = append(fields, studios...)

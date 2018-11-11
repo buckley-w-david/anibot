@@ -36,7 +36,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range creatorMedia {
-					Send(s, r.ChannelID, media)
+					go Send(s, r.ChannelID, media)
 				}
 			},
 		}
@@ -60,7 +60,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range directorMedia {
-					Send(s, r.ChannelID, media)
+					go Send(s, r.ChannelID, media)
 				}
 			},
 		}
@@ -73,7 +73,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 		j := i
 		studioButton := discordbuttons.Button{
 			Data:     nil,
-			Reaction: StudioReactions[i%2],
+			Reaction: StudioReactions[i%len(StudioReactions)],
 			Callback: func(s *discordgo.Session, r *discordgo.MessageReactionAdd, mID string, cID string, data interface{}) {
 				fmt.Println(media.Studios.Edges[j].Studio.ID)
 				ctx := context.Background()
@@ -84,7 +84,7 @@ func Send(s *discordgo.Session, channel string, media anilist.Media) (err error)
 				}
 
 				for _, media := range studioMedia {
-					Send(s, r.ChannelID, media)
+					go Send(s, r.ChannelID, media)
 				}
 			},
 		}
