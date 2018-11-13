@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/buckley-w-david/anibot/anilist"
+	"github.com/buckley-w-david/anibot/pkg/anilist"
 	"github.com/buckley-w-david/discordbuttons"
 	"github.com/bwmarrin/discordgo"
 )

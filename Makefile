@@ -1,11 +1,11 @@
 run:
-	go run ./bot
+	go run ./cmd/bot
 
 build: 
-	go build -o bin/bot github.com/buckley-w-david/anibot/bot
+	go build -o bin/bot ./cmd/bot
 
 install:
-	go install github.com/buckley-w-david/anibot/bot
+	go install ./cmd/bot
 
 deploy:
 	git push heroku master

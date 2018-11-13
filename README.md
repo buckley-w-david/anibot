@@ -27,7 +27,7 @@ TODO: Section on bot commands
 ### Response
 
 The bot will respond with something that looks like...
-![Example](assets/anibot.gif)
+![Example](https://github.com/buckley-w-david/anibot/blob/54fbe5850baa2dabba214c1729dfebfb5b661653/assets/anibot.gif)
 
 ### What's with the reactions?
 

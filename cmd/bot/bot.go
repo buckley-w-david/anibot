@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/buckley-w-david/anibot/anilist"
+	"github.com/buckley-w-david/anibot/pkg/anilist"
 	"github.com/bwmarrin/discordgo"
 )
 
